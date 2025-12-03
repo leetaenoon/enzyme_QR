@@ -8,8 +8,11 @@ import QRCode from "react-qr-code";
 const PASS_TYPES = [
   { name: "1회권 (첫 체험)", count: 1, price: 35000 },
   { name: "1회권", count: 1, price: 40000 },
-  { name: "10회권", count: 10, price: 350000 },
-  { name: "20회권", count: 20, price: 600000 },
+  { name: "12회권", count: 12, price: 400000 },
+  { name: "26회권", count: 26, price: 800000 },
+  { name: "50회권", count: 50, price: 1200000 },
+  { name: "70회권", count: 70, price: 1600000 },
+  { name: "100회권", count: 100, price: 2000000 },
 ];
 
 export default function SignupPage() {
@@ -17,12 +20,12 @@ export default function SignupPage() {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [selectedPass, setSelectedPass] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [ticketUrl, setTicketUrl] = useState(""); // 모바일 티켓 URL 저장
-
-  // 현재 사이트 주소 가져오기 (localhost 또는 배포 주소)
+  const [ticketUrl, setTicketUrl] = useState("");
   const [origin, setOrigin] = useState("");
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setOrigin(window.location.origin);
@@ -34,11 +37,20 @@ export default function SignupPage() {
     if (raw.length <= 11) setPhone(raw);
   };
 
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+  };
+
   const goToPassSelection = async () => {
     if (!name || phone.length < 10) {
       alert("이름과 전화번호를 정확히 입력해주세요.");
       return;
     }
+    if (!password || password.length < 4) {
+      alert("2차 비밀번호를 4자리 이상 입력해주세요.");
+      return;
+    }
+
     const formatted = phone.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
     const { data } = await supabase
       .from("members")
@@ -69,6 +81,7 @@ export default function SignupPage() {
           name,
           phone_number: formatted,
           qr_code: uniqueQrCode,
+          second_password: password,
         })
         .select()
         .single();
@@ -91,9 +104,7 @@ export default function SignupPage() {
 
       if (purchaseError) throw purchaseError;
 
-      // ✨ 모바일 티켓 페이지 URL 생성
-      // 예: https://site-url.com/my-qr/uuid-code...
-      const url = `${window.location.origin}/my-qr/${uniqueQrCode}`;
+      const url = `${origin}/my-qr/${uniqueQrCode}`;
       setTicketUrl(url);
 
       setStep(3);
@@ -139,6 +150,19 @@ export default function SignupPage() {
                 placeholder="01012345678"
               />
             </div>
+            <div>
+              <label className="block text-xl font-bold text-gray-700 mb-2">
+                2차 비밀번호 (4자리 이상)
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={handlePasswordChange}
+                className="w-full text-2xl p-4 border-2 border-stone-300 rounded-xl"
+                placeholder="비밀번호 입력"
+                maxLength={20}
+              />
+            </div>
           </div>
           <button
             onClick={goToPassSelection}
@@ -165,25 +189,25 @@ export default function SignupPage() {
       )}
 
       {step === 2 && (
-        <div className="w-full max-w-3xl">
+        <div className="w-full max-w-4xl">
           <h2 className="text-3xl font-bold text-center mb-6">
             구매할 이용권을 선택하세요
           </h2>
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-2 gap-4 mb-8 max-h-[60vh] overflow-y-auto p-2">
             {PASS_TYPES.map((pass) => (
               <button
                 key={pass.name}
                 onClick={() => setSelectedPass(pass)}
-                className={`p-8 rounded-2xl border-4 text-left transition-all ${
+                className={`p-6 rounded-2xl border-4 text-left transition-all ${
                   selectedPass?.name === pass.name
                     ? "border-emerald-500 bg-emerald-50 shadow-lg scale-105"
                     : "border-stone-200 bg-white hover:border-stone-300"
                 }`}
               >
-                <div className="text-2xl font-bold text-gray-900">
+                <div className="text-xl font-bold text-gray-900">
                   {pass.name}
                 </div>
-                <div className="text-xl text-emerald-600 font-bold mt-2">
+                <div className="text-lg text-emerald-600 font-bold mt-1">
                   {pass.price.toLocaleString()}원
                 </div>
               </button>
@@ -196,6 +220,24 @@ export default function SignupPage() {
           >
             {loading ? "처리중..." : "결제 및 가입 완료"}
           </button>
+
+          {/* 👇 추가된 버튼들: 이전 단계 & 처음으로 */}
+          <div className="mt-4 flex gap-4">
+            <button
+              onClick={() => setStep(1)}
+              className="flex-1 bg-stone-200 text-gray-700 text-2xl font-bold py-5 rounded-2xl shadow-md active:scale-95 transition-all"
+              disabled={loading}
+            >
+              이전 단계
+            </button>
+            <button
+              onClick={() => router.push("/")}
+              className="flex-1 bg-stone-300 text-gray-800 text-2xl font-bold py-5 rounded-2xl shadow-md active:scale-95 transition-all"
+              disabled={loading}
+            >
+              처음으로
+            </button>
+          </div>
         </div>
       )}
 
@@ -204,7 +246,6 @@ export default function SignupPage() {
           <div className="bg-emerald-100 text-emerald-800 px-6 py-2 rounded-full font-bold mb-6">
             가입 완료!
           </div>
-
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
             {name}님 환영합니다
           </h2>
@@ -214,17 +255,9 @@ export default function SignupPage() {
             <span className="text-emerald-600 font-bold">모바일 티켓</span>을
             저장해 주세요.
           </p>
-
           <div className="p-6 border-2 border-stone-100 rounded-3xl mb-8 bg-white shadow-inner">
-            {/* 이 QR은 입장용이 아니라, URL 이동용입니다 */}
             <QRCode value={ticketUrl} size={250} />
           </div>
-
-          <div className="text-sm text-gray-400 mb-8">
-            * 스캔 시 모바일 티켓 페이지로 이동합니다.
-            <br />* 페이지를 즐겨찾기 하거나 화면을 캡처해 두세요.
-          </div>
-
           <button
             onClick={() => router.push("/")}
             className="w-full bg-stone-800 text-white text-2xl font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all"

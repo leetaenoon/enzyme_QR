@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Scanner } from "@yudiel/react-qr-scanner";
 
+// ✨ 수정된 이용권 목록
 const PRODUCTS = [
+  { name: "1회권 (첫 체험)", count: 1, price: 35000 },
   { name: "1회권", count: 1, price: 40000 },
-  { name: "10회권", count: 10, price: 350000 },
-  { name: "20회권", count: 20, price: 600000 },
+  { name: "12회권", count: 12, price: 400000 },
+  { name: "26회권", count: 26, price: 800000 },
+  { name: "50회권", count: 50, price: 1200000 },
+  { name: "70회권", count: 70, price: 1600000 },
+  { name: "100회권", count: 100, price: 2000000 },
 ];
 
 export default function PurchasePage() {
@@ -19,10 +24,9 @@ export default function PurchasePage() {
 
   const handleScan = async (detectedCodes) => {
     if (detectedCodes?.[0]?.rawValue && !loading) {
-      const qrValue = detectedCodes[0].rawValue; // UUID값
+      const qrValue = detectedCodes[0].rawValue;
       setLoading(true);
 
-      // 🚨 핵심 수정: qr_code 컬럼으로 검색
       const { data } = await supabase
         .from("members")
         .select("*")
@@ -96,24 +100,25 @@ export default function PurchasePage() {
       )}
 
       {step === "select" && member && (
-        <div className="w-full max-w-4xl">
+        <div className="w-full max-w-5xl">
           <h2 className="text-3xl font-bold text-center mb-2">
             {member.name}님
           </h2>
           <p className="text-xl text-center text-gray-500 mb-8">
             {member.phone_number}
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto p-2">
             {PRODUCTS.map((p) => (
               <button
                 key={p.name}
                 onClick={() => handlePurchase(p)}
-                className="bg-white p-8 rounded-2xl shadow-lg border-b-[6px] border-stone-200 active:border-b-0 active:translate-y-[6px] transition-all hover:bg-emerald-50"
+                className="bg-white p-6 rounded-2xl shadow-lg border-b-[6px] border-stone-200 active:border-b-0 active:translate-y-[6px] transition-all hover:bg-emerald-50"
               >
-                <div className="text-2xl font-bold text-gray-800 mb-2">
+                <div className="text-xl font-bold text-gray-800 mb-1">
                   {p.name}
                 </div>
-                <div className="text-xl text-emerald-600 font-bold">
+                <div className="text-lg text-emerald-600 font-bold">
                   {p.price.toLocaleString()}원
                 </div>
               </button>
