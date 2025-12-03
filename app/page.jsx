@@ -18,7 +18,7 @@ export default function HomePage() {
 
   return (
     <div className="h-screen bg-gradient-to-b from-stone-50 to-stone-100 flex flex-col items-center justify-center p-8 overflow-hidden">
-      <div className="w-full max-w-5xl p-6 mb-6 text-center">
+      <div className="w-full max-w-5xl p-6 mb-4 text-center">
         <h1 className="text-5xl font-bold text-gray-900 mb-3">
           효소방 키오스크
         </h1>
@@ -35,7 +35,6 @@ export default function HomePage() {
       </div>
 
       <div className="w-full max-w-5xl bg-white/80 backdrop-blur-sm rounded-3xl shadow-lg p-8 flex gap-8 mb-6 border border-stone-200">
-        {/* 왼쪽: QR 코드 스캔 (입실) */}
         <button
           onClick={() => router.push("/entry?mode=qr")}
           className="flex-1 bg-white border-3 border-emerald-500 hover:bg-emerald-50 hover:shadow-xl text-emerald-700 text-3xl font-bold py-12 px-8 rounded-2xl transition-all duration-300 active:scale-98 flex flex-col items-center justify-center gap-4 shadow-md"
@@ -45,7 +44,6 @@ export default function HomePage() {
           <span className="text-xl text-gray-600 font-normal">(입실하기)</span>
         </button>
 
-        {/* 오른쪽: 회원가입 (기존 전화번호 입력 버튼 교체) */}
         <button
           onClick={() => router.push("/signup")}
           className="flex-1 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 hover:shadow-xl text-white text-3xl font-bold py-12 px-8 rounded-2xl transition-all duration-300 active:scale-98 flex flex-col items-center justify-center gap-4 shadow-lg"
@@ -58,24 +56,31 @@ export default function HomePage() {
         </button>
       </div>
 
-      <div className="w-full max-w-5xl flex gap-4">
+      {/* 하단 버튼 4개 그리드 배치 */}
+      <div className="w-full max-w-5xl grid grid-cols-4 gap-4">
         <button
           onClick={() => router.push("/purchase")}
-          className="flex-1 bg-white hover:bg-emerald-50 border-2 border-stone-300 hover:border-emerald-500 hover:shadow-lg text-gray-900 text-2xl font-bold py-6 px-6 rounded-2xl transition-all duration-300 active:scale-98"
+          className="bg-white hover:bg-emerald-50 border-2 border-stone-300 hover:border-emerald-500 hover:shadow-lg text-gray-900 text-2xl font-bold py-6 rounded-2xl transition-all duration-300 active:scale-98"
         >
           이용권 구매
         </button>
         <button
           onClick={() => router.push("/check")}
-          className="flex-1 bg-white hover:bg-emerald-50 border-2 border-stone-300 hover:border-emerald-500 hover:shadow-lg text-gray-900 text-2xl font-bold py-6 px-6 rounded-2xl transition-all duration-300 active:scale-98"
+          className="bg-white hover:bg-emerald-50 border-2 border-stone-300 hover:border-emerald-500 hover:shadow-lg text-gray-900 text-2xl font-bold py-6 rounded-2xl transition-all duration-300 active:scale-98"
         >
           잔여횟수 조회
         </button>
         <button
           onClick={() => router.push("/non-member")}
-          className="flex-1 bg-white hover:bg-emerald-50 border-2 border-stone-300 hover:border-emerald-500 hover:shadow-lg text-gray-900 text-2xl font-bold py-6 px-6 rounded-2xl transition-all duration-300 active:scale-98"
+          className="bg-white hover:bg-emerald-50 border-2 border-stone-300 hover:border-emerald-500 hover:shadow-lg text-gray-900 text-2xl font-bold py-6 rounded-2xl transition-all duration-300 active:scale-98"
         >
           비회원
+        </button>
+        <button
+          onClick={() => router.push("/withdraw")}
+          className="bg-stone-200 hover:bg-red-50 border-2 border-stone-300 hover:border-red-400 hover:shadow-lg text-gray-600 hover:text-red-500 text-2xl font-bold py-6 rounded-2xl transition-all duration-300 active:scale-98"
+        >
+          회원탈퇴
         </button>
       </div>
 

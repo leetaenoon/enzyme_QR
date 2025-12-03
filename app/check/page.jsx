@@ -8,36 +8,32 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 export default function CheckPage() {
   const router = useRouter();
   const [step, setStep] = useState("scan");
-  const [info, setInfo] = useState(null); // 회원정보 + 이용권정보
+  const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleScan = async (detectedCodes) => {
     if (detectedCodes?.[0]?.rawValue && !loading) {
-      const raw = detectedCodes[0].rawValue;
-      const formatted = raw
-        .replace(/[^0-9]/g, "")
-        .replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
-
+      const qrValue = detectedCodes[0].rawValue;
       setLoading(true);
-      // 회원 찾기
+
+      // 🚨 핵심 수정: qr_code 컬럼으로 검색
       const { data: member } = await supabase
         .from("members")
         .select("*")
-        .eq("phone_number", formatted)
+        .eq("qr_code", qrValue)
         .single();
 
       if (member) {
-        // 이용권 찾기
         const { data: passes } = await supabase
           .from("purchase_history")
           .select("*")
-          .eq("phone_number", formatted)
+          .eq("member_id", member.id) // ID로 정확히 조회
           .order("purchase_date", { ascending: false });
 
         setInfo({ member, passes });
         setStep("result");
       } else {
-        alert("등록되지 않은 회원입니다.");
+        alert("등록되지 않은 회원 QR입니다.");
       }
       setLoading(false);
     }
@@ -52,8 +48,12 @@ export default function CheckPage() {
           <div className="bg-black rounded-3xl overflow-hidden shadow-2xl border-4 border-indigo-500 aspect-square relative">
             <Scanner
               onScan={handleScan}
+              constraints={{ facingMode: "user" }}
               components={{ audio: false, finder: false }}
-              styles={{ container: { width: "100%", height: "100%" } }}
+              styles={{
+                container: { width: "100%", height: "100%" },
+                video: { width: "100%", height: "100%", objectFit: "cover" },
+              }}
             />
             {loading && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-2xl font-bold">
@@ -115,7 +115,6 @@ export default function CheckPage() {
               ))
             )}
           </div>
-
           <button
             onClick={() => router.push("/")}
             className="w-full mt-10 bg-emerald-600 text-white text-2xl font-bold py-6 rounded-2xl shadow-lg"
