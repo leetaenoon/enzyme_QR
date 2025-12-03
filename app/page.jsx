@@ -1,25 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import Image from "next/image";
 
 export default function HomePage() {
   const router = useRouter();
-  const [adminClicks, setAdminClicks] = useState(0);
-
-  const handleAdminClick = () => {
-    const newClicks = adminClicks + 1;
-    setAdminClicks(newClicks);
-    if (newClicks >= 5) {
-      // 🚨 핵심 수정: 관리자 로그인 페이지로 이동
-      router.push("/admin/login");
-      setAdminClicks(0);
-    }
-  };
 
   return (
-    <div className="h-screen bg-[#F5F5F0] flex flex-col items-center justify-center p-6 overflow-hidden font-sans select-none">
+    <div className="h-screen bg-[#F5F5F0] flex flex-col items-center justify-center p-6 overflow-hidden font-sans select-none relative">
       {/* 1. 로고 및 헤더 영역 */}
       <div className="mb-12 text-center animate-in fade-in slide-in-from-top-4 duration-700">
         <h1 className="text-6xl font-extrabold text-[#4A5D4F] tracking-tight mb-4">
@@ -94,11 +82,15 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* 4. 관리자 히든 버튼 (하단 20px 영역) */}
-      <div
-        onClick={handleAdminClick}
-        className="fixed bottom-0 left-0 right-0 h-5 cursor-default z-50"
-      />
+      {/* 4. 관리자 모드 버튼 (화면 최하단에 표시) */}
+      <div className="absolute bottom-6 left-0 right-0 text-center">
+        <button
+          onClick={() => router.push("/admin/login")}
+          className="text-[#8A9A8E] text-sm hover:text-[#4A5D4F] underline decoration-[#E0E0D0] underline-offset-4 transition-colors font-medium px-4 py-2"
+        >
+          관리자 모드
+        </button>
+      </div>
     </div>
   );
 }

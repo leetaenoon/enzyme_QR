@@ -25,6 +25,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [ticketUrl, setTicketUrl] = useState("");
   const [origin, setOrigin] = useState("");
+  const [generatedQr, setGeneratedQr] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -89,7 +90,7 @@ export default function SignupPage() {
       if (memberError) throw memberError;
       newMemberId = newMember.id;
 
-      // 2. 구매 이력 생성
+      // 2. 이용권 구매 기록
       const { error: purchaseError } = await supabase
         .from("purchase_history")
         .insert({
@@ -104,8 +105,16 @@ export default function SignupPage() {
 
       if (purchaseError) throw purchaseError;
 
+      // 3. ✨ 가입 로그 저장 (추가된 부분)
+      await supabase.from("member_logs").insert({
+        phone_number: formatted,
+        name: name,
+        action_type: "가입",
+      });
+
       const url = `${origin}/my-qr/${uniqueQrCode}`;
       setTicketUrl(url);
+      setGeneratedQr(uniqueQrCode);
 
       setStep(3);
     } catch (err) {
@@ -117,6 +126,33 @@ export default function SignupPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const downloadQr = () => {
+    const svg = document.getElementById("qr-code-svg");
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    const size = 600;
+    const qrSize = 500;
+    const padding = (size - qrSize) / 2;
+    canvas.width = size;
+    canvas.height = size;
+    img.onload = () => {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, padding, padding, qrSize, qrSize);
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `${name}_효소방QR.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+    img.src =
+      "data:image/svg+xml;base64," +
+      btoa(unescape(encodeURIComponent(svgData)));
   };
 
   return (
@@ -170,7 +206,6 @@ export default function SignupPage() {
           >
             다음 (이용권 선택)
           </button>
-
           <div className="mt-6 flex flex-col gap-3">
             <button
               onClick={() => router.back()}
@@ -187,7 +222,6 @@ export default function SignupPage() {
           </div>
         </div>
       )}
-
       {step === 2 && (
         <div className="w-full max-w-4xl">
           <h2 className="text-3xl font-bold text-center mb-6">
@@ -220,8 +254,6 @@ export default function SignupPage() {
           >
             {loading ? "처리중..." : "결제 및 가입 완료"}
           </button>
-
-          {/* 👇 추가된 버튼들: 이전 단계 & 처음으로 */}
           <div className="mt-4 flex gap-4">
             <button
               onClick={() => setStep(1)}
@@ -240,7 +272,6 @@ export default function SignupPage() {
           </div>
         </div>
       )}
-
       {step === 3 && (
         <div className="bg-white p-12 rounded-3xl shadow-xl text-center flex flex-col items-center max-w-2xl w-full border-4 border-emerald-500">
           <div className="bg-emerald-100 text-emerald-800 px-6 py-2 rounded-full font-bold mb-6">
@@ -256,14 +287,22 @@ export default function SignupPage() {
             저장해 주세요.
           </p>
           <div className="p-6 border-2 border-stone-100 rounded-3xl mb-8 bg-white shadow-inner">
-            <QRCode value={ticketUrl} size={250} />
+            <QRCode id="qr-code-svg" value={ticketUrl} size={250} />
           </div>
-          <button
-            onClick={() => router.push("/")}
-            className="w-full bg-stone-800 text-white text-2xl font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
-          >
-            메인으로 돌아가기
-          </button>
+          <div className="flex gap-4 w-full">
+            <button
+              onClick={downloadQr}
+              className="flex-1 bg-stone-700 hover:bg-stone-800 text-white text-2xl font-bold py-5 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <span>💾 QR 저장</span>
+            </button>
+            <button
+              onClick={() => router.push("/")}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-2xl font-bold py-5 rounded-2xl shadow-md transition-all"
+            >
+              확인
+            </button>
+          </div>
         </div>
       )}
     </div>

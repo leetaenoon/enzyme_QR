@@ -1,120 +1,78 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import QRCode from "react-qr-code";
 
-const PASS_TYPES = [
-  { name: "1회권 (첫 체험)", count: 1, price: 35000 },
-  { name: "1회권", count: 1, price: 40000 },
-  { name: "12회권", count: 12, price: 400000 },
-  { name: "26회권", count: 26, price: 800000 },
-  { name: "50회권", count: 50, price: 1200000 },
-  { name: "70회권", count: 70, price: 1600000 },
-  { name: "100회권", count: 100, price: 2000000 },
-];
-
-export default function SignupPage() {
+export default function WithdrawPage() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState(""); // 2차 비밀번호 상태 추가
-  const [selectedPass, setSelectedPass] = useState(null);
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [ticketUrl, setTicketUrl] = useState("");
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(window.location.origin);
-    }
-  }, []);
+  const [foundMember, setFoundMember] = useState(null);
 
   const handlePhoneChange = (e) => {
     const raw = e.target.value.replace(/[^0-9]/g, "");
     if (raw.length <= 11) setPhone(raw);
   };
 
-  // 비밀번호 숫자만 입력되게 하려면 이 함수 사용 (선택사항)
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-  };
-
-  const goToPassSelection = async () => {
-    if (!name || phone.length < 10) {
-      alert("이름과 전화번호를 정확히 입력해주세요.");
+  const findMember = async () => {
+    if (phone.length < 10) {
+      alert("전화번호를 정확히 입력해주세요.");
       return;
     }
-    if (!password || password.length < 4) {
-      alert("2차 비밀번호를 4자리 이상 입력해주세요.");
-      return;
-    }
-
-    const formatted = phone.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
-    const { data } = await supabase
-      .from("members")
-      .select("id")
-      .eq("phone_number", formatted)
-      .single();
-    if (data) {
-      alert("이미 가입된 전화번호입니다.");
-      return;
-    }
-    setStep(2);
-  };
-
-  const handleComplete = async () => {
-    if (!selectedPass) return;
     setLoading(true);
-
-    let newMemberId = null;
-
     try {
       const formatted = phone.replace(/(\d{3})(\d{4})(\d{4})/, "$1-$2-$3");
-      const uniqueQrCode = crypto.randomUUID();
-
-      // 1. 회원 생성 (비밀번호 포함)
-      const { data: newMember, error: memberError } = await supabase
+      const { data } = await supabase
         .from("members")
-        .insert({
-          name,
-          phone_number: formatted,
-          qr_code: uniqueQrCode,
-          second_password: password, // DB에 비밀번호 저장
-        })
-        .select()
+        .select("*")
+        .eq("phone_number", formatted)
         .single();
 
-      if (memberError) throw memberError;
-      newMemberId = newMember.id;
+      if (data) {
+        setFoundMember(data);
+      } else {
+        alert("가입되지 않은 전화번호입니다.");
+      }
+    } catch (err) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // 2. 구매 이력 생성
-      const { error: purchaseError } = await supabase
-        .from("purchase_history")
-        .insert({
-          member_id: newMember.id,
-          phone_number: formatted,
-          name: name,
-          pass_type: selectedPass.name,
-          purchase_count: selectedPass.count,
-          remaining_count: selectedPass.count,
-          is_active: true,
-        });
+  const handleWithdraw = async () => {
+    if (!password) {
+      alert("2차 비밀번호를 입력해주세요.");
+      return;
+    }
 
-      if (purchaseError) throw purchaseError;
+    if (foundMember.second_password !== password) {
+      alert("비밀번호가 일치하지 않습니다.");
+      return;
+    }
 
-      const url = `${origin}/my-qr/${uniqueQrCode}`;
-      setTicketUrl(url);
+    if (!confirm(`정말로 '${foundMember.name}'님의 정보를 삭제하시겠습니까?`))
+      return;
 
-      setStep(3);
+    setLoading(true);
+    try {
+      // 1. 삭제 전 로그 저장 (중요: 삭제되면 정보를 못 가져오므로 먼저 저장)
+      await supabase.from("member_logs").insert({
+        phone_number: foundMember.phone_number,
+        name: foundMember.name,
+        action_type: "탈퇴",
+      });
+
+      // 2. 회원 삭제
+      await supabase.from("members").delete().eq("id", foundMember.id);
+
+      alert("탈퇴가 완료되었습니다.");
+      router.push("/");
     } catch (err) {
       console.error(err);
-      if (newMemberId) {
-        await supabase.from("members").delete().eq("id", newMemberId);
-      }
-      alert("처리 중 오류가 발생했습니다.");
+      alert("삭제 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -122,24 +80,17 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6">
-      {step === 1 && (
-        <div className="w-full max-w-xl bg-white p-10 rounded-3xl shadow-xl">
-          <h2 className="text-4xl font-bold text-gray-900 mb-8 text-center">
-            회원가입
-          </h2>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-xl font-bold text-gray-700 mb-2">
-                이름
-              </label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full text-2xl p-4 border-2 border-stone-300 rounded-xl"
-                placeholder="홍길동"
-              />
-            </div>
-            <div>
+      <div className="w-full max-w-xl bg-white p-10 rounded-3xl shadow-xl border border-red-100">
+        <h2 className="text-4xl font-bold text-red-600 mb-2 text-center">
+          회원 탈퇴
+        </h2>
+        <p className="text-gray-500 text-center mb-8 text-lg">
+          본인 확인을 위해 정보를 입력해주세요.
+        </p>
+
+        {!foundMember ? (
+          <>
+            <div className="mb-8">
               <label className="block text-xl font-bold text-gray-700 mb-2">
                 전화번호
               </label>
@@ -151,106 +102,64 @@ export default function SignupPage() {
                 placeholder="01012345678"
               />
             </div>
-            {/* 👇 비밀번호 입력칸 추가 */}
-            <div>
+            <button
+              onClick={findMember}
+              disabled={loading}
+              className="w-full bg-stone-700 text-white text-3xl font-bold py-6 rounded-2xl shadow-lg"
+            >
+              {loading ? "조회중..." : "내 정보 조회"}
+            </button>
+          </>
+        ) : (
+          <div className="text-center animate-in fade-in slide-in-from-bottom-4">
+            <div className="bg-red-50 p-6 rounded-2xl mb-6 border border-red-200">
+              <p className="text-xl text-gray-600 mb-2">조회된 회원</p>
+              <p className="text-4xl font-bold text-gray-900 mb-1">
+                {foundMember.name} 님
+              </p>
+              <p className="text-lg text-gray-500">
+                {foundMember.phone_number}
+              </p>
+            </div>
+            <div className="mb-8 text-left">
               <label className="block text-xl font-bold text-gray-700 mb-2">
-                2차 비밀번호 (4자리 이상)
+                2차 비밀번호 확인
               </label>
               <input
                 type="password"
                 value={password}
-                onChange={handlePasswordChange}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full text-2xl p-4 border-2 border-stone-300 rounded-xl"
-                placeholder="비밀번호 입력"
-                maxLength={20}
+                placeholder="가입 시 입력한 비밀번호"
               />
             </div>
-          </div>
-          <button
-            onClick={goToPassSelection}
-            className="w-full mt-10 bg-emerald-600 text-white text-3xl font-bold py-6 rounded-2xl shadow-lg"
-          >
-            다음 (이용권 선택)
-          </button>
-
-          <div className="mt-6 flex flex-col gap-3">
             <button
-              onClick={() => router.back()}
-              className="w-full py-3 text-xl text-gray-500 bg-stone-100 rounded-xl"
+              onClick={handleWithdraw}
+              disabled={loading}
+              className="w-full bg-red-600 text-white text-3xl font-bold py-6 rounded-2xl shadow-lg hover:bg-red-700 transition-colors"
             >
-              취소
+              {loading ? "처리중..." : "네, 탈퇴합니다"}
             </button>
             <button
-              onClick={() => router.push("/find-qr")}
-              className="text-gray-400 text-sm underline hover:text-gray-600 transition-colors"
+              onClick={() => {
+                setFoundMember(null);
+                setPassword("");
+              }}
+              className="w-full mt-4 py-3 text-lg text-gray-500 underline"
             >
-              QR코드를 분실하셨나요?
+              다른 번호로 조회하기
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Step 2, 3는 기존과 동일하지만 전체 코드를 위해 유지 */}
-      {step === 2 && (
-        <div className="w-full max-w-4xl">
-          <h2 className="text-3xl font-bold text-center mb-6">
-            구매할 이용권을 선택하세요
-          </h2>
-          <div className="grid grid-cols-2 gap-4 mb-8 max-h-[60vh] overflow-y-auto p-2">
-            {PASS_TYPES.map((pass) => (
-              <button
-                key={pass.name}
-                onClick={() => setSelectedPass(pass)}
-                className={`p-6 rounded-2xl border-4 text-left transition-all ${
-                  selectedPass?.name === pass.name
-                    ? "border-emerald-500 bg-emerald-50 shadow-lg scale-105"
-                    : "border-stone-200 bg-white hover:border-stone-300"
-                }`}
-              >
-                <div className="text-xl font-bold text-gray-900">
-                  {pass.name}
-                </div>
-                <div className="text-lg text-emerald-600 font-bold mt-1">
-                  {pass.price.toLocaleString()}원
-                </div>
-              </button>
-            ))}
-          </div>
+        )}
+        {!foundMember && (
           <button
-            onClick={handleComplete}
-            disabled={!selectedPass || loading}
-            className="w-full bg-emerald-600 text-white text-3xl font-bold py-6 rounded-2xl shadow-lg disabled:opacity-50"
+            onClick={() => router.back()}
+            className="w-full mt-4 py-4 text-xl text-gray-500"
           >
-            {loading ? "처리중..." : "결제 및 가입 완료"}
+            취소
           </button>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="bg-white p-12 rounded-3xl shadow-xl text-center flex flex-col items-center max-w-2xl w-full border-4 border-emerald-500">
-          <div className="bg-emerald-100 text-emerald-800 px-6 py-2 rounded-full font-bold mb-6">
-            가입 완료!
-          </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            {name}님 환영합니다
-          </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            아래 QR 코드를 <strong>휴대폰 카메라</strong>로 스캔하여
-            <br />
-            <span className="text-emerald-600 font-bold">모바일 티켓</span>을
-            저장해 주세요.
-          </p>
-          <div className="p-6 border-2 border-stone-100 rounded-3xl mb-8 bg-white shadow-inner">
-            <QRCode value={ticketUrl} size={250} />
-          </div>
-          <button
-            onClick={() => router.push("/")}
-            className="w-full bg-stone-800 text-white text-2xl font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
-          >
-            메인으로 돌아가기
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
