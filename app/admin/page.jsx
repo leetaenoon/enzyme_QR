@@ -16,7 +16,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [origin, setOrigin] = useState("");
 
-  // ✨ 회원 수정 모달 상태
+  // 회원 수정 모달 상태
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -31,7 +31,10 @@ export default function AdminPage() {
       alert("관리자 로그인이 필요합니다.");
       router.replace("/admin/login");
     }
-    if (typeof window !== "undefined") setOrigin(window.location.origin);
+    // 현재 사이트 주소 가져오기 (예: https://enzyme-qr.vercel.app)
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
   }, [router]);
 
   const loadData = async () => {
@@ -90,30 +93,26 @@ export default function AdminPage() {
     );
   };
 
-  // ✨ [기능 1] 회원 수정 팝업 열기
   const openEditModal = (member) => {
     setEditingMember(member);
     setEditForm({
       name: member.name,
       phone_number: member.phone_number,
-      second_password: member.second_password || "", // 없으면 빈칸
+      second_password: member.second_password || "",
     });
     setIsEditOpen(true);
   };
 
-  // ✨ [기능 1] 회원 정보 저장
   const handleUpdateMember = async () => {
     if (!editForm.name || editForm.phone_number.length < 10) {
       alert("이름과 전화번호를 확인해주세요.");
       return;
     }
-
     try {
       const formatted = editForm.phone_number.replace(
         /(\d{3})(\d{4})(\d{4})/,
         "$1-$2-$3"
       );
-
       const { error } = await supabase
         .from("members")
         .update({
@@ -124,17 +123,15 @@ export default function AdminPage() {
         .eq("id", editingMember.id);
 
       if (error) throw error;
-
       alert("회원 정보가 수정되었습니다.");
       setIsEditOpen(false);
-      loadData(); // 목록 새로고침
+      loadData();
     } catch (err) {
       console.error(err);
       alert("수정 중 오류가 발생했습니다.");
     }
   };
 
-  // ✨ [기능 2] 관리자 권한 강제 탈퇴
   const handleForceDelete = async (member) => {
     if (
       !confirm(
@@ -142,22 +139,17 @@ export default function AdminPage() {
       )
     )
       return;
-
     try {
-      // 로그 남기기
       await supabase.from("member_logs").insert({
         phone_number: member.phone_number,
         name: member.name,
         action_type: "탈퇴",
       });
-
-      // 삭제
       const { error } = await supabase
         .from("members")
         .delete()
         .eq("id", member.id);
       if (error) throw error;
-
       alert("강제 탈퇴 처리되었습니다.");
       loadData();
     } catch (err) {
@@ -245,7 +237,7 @@ export default function AdminPage() {
                           2차 비번
                         </th>
                         <th className="p-5 text-gray-600 font-bold text-lg whitespace-nowrap text-center">
-                          QR 코드
+                          모바일 티켓
                         </th>
                         <th className="p-5 text-gray-600 font-bold text-lg whitespace-nowrap text-center">
                           관리
@@ -304,19 +296,24 @@ export default function AdminPage() {
                           )}
                         </td>
                         <td className="p-5 text-center">
-                          {m.qr_code ? (
+                          {m.qr_code && origin ? (
                             <a
                               href={`${origin}/my-qr/${m.qr_code}`}
                               target="_blank"
-                              className="inline-block p-2 border rounded-lg hover:border-emerald-500 bg-white"
+                              className="inline-flex flex-col items-center justify-center p-2 border rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all bg-white group"
+                              title="클릭하면 모바일 티켓이 열립니다"
                             >
+                              {/* QR 코드에 전체 주소(URL)를 넣어서 핸드폰 스캔 시 바로 연결되게 함 */}
                               <QRCode
                                 value={`${origin}/my-qr/${m.qr_code}`}
-                                size={50}
+                                size={60}
                               />
+                              <span className="text-xs text-gray-400 mt-1 group-hover:text-emerald-600 font-medium">
+                                티켓 보기
+                              </span>
                             </a>
                           ) : (
-                            <span className="text-gray-300">없음</span>
+                            <span className="text-gray-300">로딩중...</span>
                           )}
                         </td>
                         <td className="p-5 text-center">
@@ -421,14 +418,13 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* ✨ 회원 수정 모달 (팝업) */}
+      {/* 회원 수정 모달 */}
       {isEditOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 animate-in zoom-in-95 duration-200">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">
               회원 정보 수정
             </h2>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-500 mb-1">
@@ -477,7 +473,6 @@ export default function AdminPage() {
                 </p>
               </div>
             </div>
-
             <div className="flex gap-3 mt-8">
               <button
                 onClick={() => setIsEditOpen(false)}
