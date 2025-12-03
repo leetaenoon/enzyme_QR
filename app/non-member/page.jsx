@@ -1,27 +1,31 @@
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
 
 export default function NonMemberPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   const handleRegister = () => {
-    // 회원가입 페이지로 이동
-    router.push("/purchase")
-  }
+    // 🚨 수정됨: 기존 회원이 아닌 신규 가입이므로 /signup 으로 이동
+    router.push("/signup");
+  };
 
   const handleOneTimePass = () => {
     // 1회권 결제 페이지로 이동 (비회원 1회권)
-    router.push("/non-member/payment")
-  }
+    router.push("/non-member/payment");
+  };
 
   return (
     <div className="h-screen bg-stone-50 flex flex-col items-center justify-center p-8 overflow-hidden">
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-md p-12 mb-8 text-center">
         <h2 className="text-4xl font-bold text-gray-900 mb-8">비회원 안내</h2>
         <p className="text-3xl text-gray-800 mb-4">비회원일 경우</p>
-        <p className="text-3xl text-gray-800 mb-12">1회권밖에 사용이 불가합니다.</p>
-        <p className="text-2xl text-emerald-700 font-semibold">회원가입을 진행하시겠습니까?</p>
+        <p className="text-3xl text-gray-800 mb-12">
+          1회권밖에 사용이 불가합니다.
+        </p>
+        <p className="text-2xl text-emerald-700 font-semibold">
+          회원가입을 진행하시겠습니까?
+        </p>
       </div>
 
       <div className="w-full max-w-2xl flex gap-8">
@@ -50,5 +54,5 @@ export default function NonMemberPage() {
         처음으로
       </button>
     </div>
-  )
+  );
 }

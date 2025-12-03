@@ -11,12 +11,24 @@ export default function CheckPage() {
   const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // ✨ 총 잔여 횟수 계산 함수
+  const calculateTotal = (passes) => {
+    return passes.reduce((sum, pass) => {
+      // 활성화된(is_active) 이용권의 남은 횟수만 합산
+      return pass.is_active ? sum + pass.remaining_count : sum;
+    }, 0);
+  };
+
   const handleScan = async (detectedCodes) => {
     if (detectedCodes?.[0]?.rawValue && !loading) {
-      const qrValue = detectedCodes[0].rawValue;
-      setLoading(true);
+      const rawValue = detectedCodes[0].rawValue;
 
-      // 🚨 핵심 수정: qr_code 컬럼으로 검색
+      let qrValue = rawValue;
+      if (rawValue.includes("/my-qr/")) {
+        qrValue = rawValue.split("/my-qr/")[1];
+      }
+
+      setLoading(true);
       const { data: member } = await supabase
         .from("members")
         .select("*")
@@ -27,8 +39,8 @@ export default function CheckPage() {
         const { data: passes } = await supabase
           .from("purchase_history")
           .select("*")
-          .eq("member_id", member.id) // ID로 정확히 조회
-          .order("purchase_date", { ascending: false });
+          .eq("member_id", member.id)
+          .order("purchase_date", { ascending: false }); // 최신순 정렬
 
         setInfo({ member, passes });
         setStep("result");
@@ -71,31 +83,39 @@ export default function CheckPage() {
       )}
 
       {step === "result" && info && (
-        <div className="w-full max-w-2xl bg-white p-10 rounded-3xl shadow-xl">
-          <h2 className="text-4xl font-bold text-gray-900 mb-2 text-center">
-            {info.member.name}님의 현황
-          </h2>
-          <p className="text-xl text-center text-gray-500 mb-10">
-            {info.member.phone_number}
-          </p>
+        <div className="w-full max-w-2xl bg-white p-10 rounded-3xl shadow-xl border border-stone-200">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-bold text-gray-900 mb-2">
+              {info.member.name}님의 현황
+            </h2>
+            <p className="text-xl text-gray-500">{info.member.phone_number}</p>
+          </div>
 
-          <div className="space-y-4 max-h-[400px] overflow-y-auto">
+          {/* ✨ 총 잔여 횟수 강조 영역 */}
+          <div className="bg-[#4A5D4F] rounded-2xl p-6 text-center mb-8 text-white shadow-lg transform scale-105">
+            <p className="text-lg opacity-80 mb-1">총 잔여 횟수</p>
+            <p className="text-5xl font-extrabold">
+              {calculateTotal(info.passes)}회
+            </p>
+          </div>
+
+          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
             {info.passes?.length === 0 ? (
               <p className="text-center text-2xl text-gray-400 py-10">
-                보유 중인 이용권이 없습니다.
+                이용권 내역이 없습니다.
               </p>
             ) : (
               info.passes.map((pass) => (
                 <div
                   key={pass.id}
-                  className={`p-6 rounded-2xl border-2 flex justify-between items-center ${
+                  className={`p-5 rounded-xl border-2 flex justify-between items-center ${
                     pass.remaining_count > 0
                       ? "border-emerald-500 bg-emerald-50"
-                      : "border-gray-200 bg-gray-50 opacity-60"
+                      : "border-gray-200 bg-gray-50 opacity-50"
                   }`}
                 >
                   <div>
-                    <div className="text-2xl font-bold text-gray-800">
+                    <div className="text-xl font-bold text-gray-800">
                       {pass.pass_type}
                     </div>
                     <div className="text-sm text-gray-500">
@@ -103,21 +123,22 @@ export default function CheckPage() {
                     </div>
                   </div>
                   <div
-                    className={`text-3xl font-bold ${
+                    className={`text-2xl font-bold ${
                       pass.remaining_count > 0
                         ? "text-emerald-600"
                         : "text-gray-400"
                     }`}
                   >
-                    {pass.remaining_count}회 남음
+                    {pass.remaining_count}회
                   </div>
                 </div>
               ))
             )}
           </div>
+
           <button
             onClick={() => router.push("/")}
-            className="w-full mt-10 bg-emerald-600 text-white text-2xl font-bold py-6 rounded-2xl shadow-lg"
+            className="w-full mt-8 bg-stone-700 text-white text-2xl font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
           >
             확인 (메인으로)
           </button>
