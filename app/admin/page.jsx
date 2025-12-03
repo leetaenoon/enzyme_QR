@@ -1,209 +1,271 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import QRCode from "react-qr-code";
 
 export default function AdminPage() {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState("entry") // 'entry', 'purchase'
-  const [entryLogs, setEntryLogs] = useState([])
-  const [purchases, setPurchases] = useState([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("entry"); // 'entry', 'purchase', 'members'
+  const [entryLogs, setEntryLogs] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [members, setMembers] = useState([]); // 회원 목록 상태 추가
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [origin, setOrigin] = useState("");
+
+  // 1. 관리자 인증 체크 (보안)
+  useEffect(() => {
+    const isAuth = localStorage.getItem("admin_auth");
+    if (isAuth !== "true") {
+      alert("관리자 로그인이 필요합니다.");
+      router.replace("/admin/login");
+    }
+    if (typeof window !== "undefined") setOrigin(window.location.origin);
+  }, [router]);
 
   // 데이터 로드
   const loadData = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       if (activeTab === "entry") {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("entry_logs")
           .select("*")
           .order("entry_time", { ascending: false })
-          .limit(50)
-
-        if (error) throw error
-        setEntryLogs(data || [])
-      } else {
-        const { data, error } = await supabase
+          .limit(50);
+        setEntryLogs(data || []);
+      } else if (activeTab === "purchase") {
+        const { data } = await supabase
           .from("purchase_history")
           .select("*")
           .order("purchase_date", { ascending: false })
-          .limit(50)
-
-        if (error) throw error
-        setPurchases(data || [])
+          .limit(50);
+        setPurchases(data || []);
+      } else if (activeTab === "members") {
+        // 회원 목록 조회 (최신 가입순)
+        const { data } = await supabase
+          .from("members")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setMembers(data || []);
       }
     } catch (err) {
-      console.error("[v0] 데이터 로드 오류:", err)
+      console.error("데이터 로드 오류:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // 탭 변경시 데이터 로드
   useEffect(() => {
-    loadData()
-  }, [activeTab])
+    loadData();
+  }, [activeTab]);
 
-  // 검색 필터링
-  const filteredEntryLogs = entryLogs.filter(
-    (log) => log.name?.includes(searchTerm) || log.phone_number?.includes(searchTerm),
-  )
+  // 로그아웃
+  const handleLogout = () => {
+    localStorage.removeItem("admin_auth");
+    router.push("/");
+  };
 
-  const filteredPurchases = purchases.filter(
-    (p) => p.name?.includes(searchTerm) || p.phone_number?.includes(searchTerm),
-  )
-
-  // 날짜 포맷팅
-  const formatDate = (dateString) => {
-    if (!dateString) return "-"
-    const date = new Date(dateString)
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
-
-  // 가격 포맷팅
-  const formatPrice = (price) => {
-    return price.toLocaleString("ko-KR") + "원"
-  }
+  // 필터링 함수
+  const filterData = (data) => {
+    if (!searchTerm) return data;
+    return data.filter(
+      (item) =>
+        item.name?.includes(searchTerm) ||
+        item.phone_number?.includes(searchTerm)
+    );
+  };
 
   return (
     <div className="min-h-screen bg-stone-50 p-8">
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-5xl font-bold text-gray-900">관리자 대시보드</h1>
-          <button
-            onClick={() => router.push("/")}
-            className="bg-stone-400 hover:bg-stone-500 text-white text-2xl font-bold px-8 py-4 rounded-2xl transition-all shadow-md"
-          >
-            메인으로
-          </button>
-        </div>
-
-        {/* 탭 */}
-        <div className="bg-white rounded-3xl shadow-md p-4 mb-8">
-          <div className="flex gap-4">
+          <h1 className="text-4xl font-bold text-gray-900">관리자 모드</h1>
+          <div className="flex gap-3">
             <button
-              onClick={() => setActiveTab("entry")}
-              className={`flex-1 text-3xl font-bold py-6 rounded-2xl transition-all ${
-                activeTab === "entry"
-                  ? "bg-emerald-600 text-white shadow-md"
-                  : "bg-stone-100 text-gray-600 hover:bg-stone-200"
-              }`}
+              onClick={() => router.push("/")}
+              className="bg-white border border-stone-300 px-6 py-3 rounded-xl font-bold text-gray-600"
             >
-              입실 기록
+              메인으로
             </button>
             <button
-              onClick={() => setActiveTab("purchase")}
-              className={`flex-1 text-3xl font-bold py-6 rounded-2xl transition-all ${
-                activeTab === "purchase"
-                  ? "bg-emerald-600 text-white shadow-md"
-                  : "bg-stone-100 text-gray-600 hover:bg-stone-200"
-              }`}
+              onClick={handleLogout}
+              className="bg-stone-800 text-white px-6 py-3 rounded-xl font-bold"
             >
-              구매 이력
+              로그아웃
             </button>
           </div>
         </div>
 
-        {/* 검색 */}
-        <div className="bg-white rounded-3xl shadow-md p-6 mb-8">
+        {/* 탭 메뉴 */}
+        <div className="flex gap-2 mb-6 bg-white p-2 rounded-2xl shadow-sm border border-stone-200">
+          {["entry", "purchase", "members"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-4 rounded-xl text-xl font-bold transition-all ${
+                activeTab === tab
+                  ? "bg-emerald-600 text-white shadow-md"
+                  : "text-gray-500 hover:bg-stone-100"
+              }`}
+            >
+              {tab === "entry" && "입실 기록"}
+              {tab === "purchase" && "구매 내역"}
+              {tab === "members" && "회원 관리"}
+            </button>
+          ))}
+        </div>
+
+        {/* 검색창 */}
+        <div className="mb-6">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="이름 또는 전화번호로 검색..."
-            className="w-full text-3xl px-6 py-4 border-2 border-stone-300 rounded-2xl focus:border-emerald-600 focus:outline-none bg-stone-50"
+            placeholder="이름 또는 전화번호 검색..."
+            className="w-full p-4 text-xl border-2 border-stone-200 rounded-xl focus:border-emerald-500 outline-none"
           />
         </div>
 
-        {/* 로딩 */}
-        {loading && <div className="text-center text-3xl text-gray-600 py-12">로딩 중...</div>}
-
-        {/* 입실 기록 */}
-        {!loading && activeTab === "entry" && (
-          <div className="bg-white rounded-3xl shadow-md overflow-hidden">
+        {/* 컨텐츠 영역 */}
+        <div className="bg-white rounded-3xl shadow-md overflow-hidden border border-stone-200 min-h-[500px]">
+          {loading ? (
+            <div className="p-20 text-center text-gray-400 text-xl">
+              데이터를 불러오는 중...
+            </div>
+          ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+              <table className="w-full text-left">
+                <thead className="bg-stone-100 border-b border-stone-200">
                   <tr>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">입실 시간</th>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">이름</th>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">전화번호</th>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">이용권</th>
+                    {activeTab === "members" ? (
+                      <>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          가입일
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          이름
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          전화번호
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          2차 비번
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg text-center">
+                          QR 코드
+                        </th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          날짜
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          이름
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          전화번호
+                        </th>
+                        <th className="p-5 text-gray-600 font-bold text-lg">
+                          내용
+                        </th>
+                      </>
+                    )}
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredEntryLogs.map((log) => (
-                    <tr key={log.id} className="border-b border-stone-200 hover:bg-stone-50">
-                      <td className="px-6 py-4 text-2xl text-gray-800">{formatDate(log.entry_time)}</td>
-                      <td className="px-6 py-4 text-2xl text-gray-600">{log.name}</td>
-                      <td className="px-6 py-4 text-2xl text-gray-600">{log.phone_number}</td>
-                      <td className="px-6 py-4 text-2xl text-gray-600">{log.pass_type}</td>
-                    </tr>
-                  ))}
-                  {filteredEntryLogs.length === 0 && (
-                    <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center text-2xl text-gray-500">
-                        입실 기록이 없습니다
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                <tbody className="divide-y divide-stone-100">
+                  {activeTab === "members" &&
+                    filterData(members).map((m) => (
+                      <tr key={m.id} className="hover:bg-stone-50">
+                        <td className="p-5 text-gray-500">
+                          {new Date(m.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-5 font-bold text-gray-900">
+                          {m.name}
+                        </td>
+                        <td className="p-5 text-gray-700">{m.phone_number}</td>
+                        <td className="p-5 font-mono text-emerald-600">
+                          {m.second_password || "-"}
+                        </td>
+                        <td className="p-5 text-center">
+                          {m.qr_code ? (
+                            <a
+                              href={`${origin}/my-qr/${m.qr_code}`}
+                              target="_blank"
+                              className="inline-block p-2 border rounded-lg hover:border-emerald-500 transition-colors bg-white"
+                            >
+                              <QRCode
+                                value={`${origin}/my-qr/${m.qr_code}`}
+                                size={60}
+                              />
+                            </a>
+                          ) : (
+                            <span className="text-gray-300">없음</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
 
-        {/* 구매 이력 */}
-        {!loading && activeTab === "purchase" && (
-          <div className="bg-white rounded-3xl shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">구매일</th>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">이름</th>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">전화번호</th>
-                    <th className="px-6 py-4 text-left text-2xl font-bold text-gray-700">이용권</th>
-                    <th className="px-6 py-4 text-center text-2xl font-bold text-gray-700">잔여</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPurchases.map((p) => (
-                    <tr key={p.id} className="border-b border-stone-200 hover:bg-stone-50">
-                      <td className="px-6 py-4 text-2xl text-gray-800">{formatDate(p.purchase_date)}</td>
-                      <td className="px-6 py-4 text-2xl text-gray-600">{p.name}</td>
-                      <td className="px-6 py-4 text-2xl text-gray-600">{p.phone_number}</td>
-                      <td className="px-6 py-4 text-2xl text-gray-600">{p.pass_type}</td>
-                      <td className="px-6 py-4 text-2xl text-center">
-                        <span className={p.remaining_count > 0 ? "text-green-600 font-bold" : "text-red-600"}>
-                          {p.remaining_count}회
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredPurchases.length === 0 && (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-2xl text-gray-500">
-                        구매 이력이 없습니다
-                      </td>
-                    </tr>
-                  )}
+                  {activeTab === "entry" &&
+                    filterData(entryLogs).map((log) => (
+                      <tr key={log.id} className="hover:bg-stone-50">
+                        <td className="p-5 text-gray-500">
+                          {new Date(log.entry_time).toLocaleString()}
+                        </td>
+                        <td className="p-5 font-bold text-gray-900">
+                          {log.name}
+                        </td>
+                        <td className="p-5 text-gray-700">
+                          {log.phone_number}
+                        </td>
+                        <td className="p-5 text-emerald-600 font-medium">
+                          {log.pass_type} 입실
+                        </td>
+                      </tr>
+                    ))}
+
+                  {activeTab === "purchase" &&
+                    filterData(purchases).map((p) => (
+                      <tr key={p.id} className="hover:bg-stone-50">
+                        <td className="p-5 text-gray-500">
+                          {new Date(p.purchase_date).toLocaleString()}
+                        </td>
+                        <td className="p-5 font-bold text-gray-900">
+                          {p.name}
+                        </td>
+                        <td className="p-5 text-gray-700">{p.phone_number}</td>
+                        <td className="p-5">
+                          <span className="font-bold text-emerald-700">
+                            {p.pass_type}
+                          </span>{" "}
+                          ({p.purchase_count}회)
+                          <span className="ml-2 text-sm text-gray-400">
+                            잔여: {p.remaining_count}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
+              {filterData(
+                activeTab === "members"
+                  ? members
+                  : activeTab === "entry"
+                  ? entryLogs
+                  : purchases
+              ).length === 0 && (
+                <div className="p-10 text-center text-gray-400">
+                  데이터가 없습니다.
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
-  )
+  );
 }

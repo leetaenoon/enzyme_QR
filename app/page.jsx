@@ -12,7 +12,8 @@ export default function HomePage() {
     const newClicks = adminClicks + 1;
     setAdminClicks(newClicks);
     if (newClicks >= 5) {
-      router.push("/admin");
+      // 🚨 핵심 수정: 관리자 로그인 페이지로 이동
+      router.push("/admin/login");
       setAdminClicks(0);
     }
   };
@@ -21,7 +22,6 @@ export default function HomePage() {
     <div className="h-screen bg-[#F5F5F0] flex flex-col items-center justify-center p-6 overflow-hidden font-sans select-none">
       {/* 1. 로고 및 헤더 영역 */}
       <div className="mb-12 text-center animate-in fade-in slide-in-from-top-4 duration-700">
-        {/* 👇 타이틀 변경: SOOP -> 내몸에 효소욕 */}
         <h1 className="text-6xl font-extrabold text-[#4A5D4F] tracking-tight mb-4">
           내몸에 효소욕
         </h1>
